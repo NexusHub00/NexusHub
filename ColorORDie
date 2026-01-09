@@ -1,0 +1,329 @@
+--[[
+    ========================================
+    Nexus Hub - Color or Die! (With Consolidated Gate ESP)
+    - Removed the separate final door toggle.
+    - The special door is now highlighted when you enable the main Gate ESP.
+    ========================================
+--]]
+
+-- Load the WindUI library
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- === SERVICES ===
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local DebrisService = game:GetService("Debris")
+
+-- === CONFIGURATION ===
+local MONSTER_NAME = "Bill"
+local MONSTER_PATH = workspace.GameplayAssets.Monsters
+local BUCKET_PATH = workspace.GameplayAssets.Items.Normal.PaintBucket
+local GATE_PATH = workspace.GameplayParts.Doors.Normal.Paintable
+local SPECIAL_DOOR_PATH = workspace.GameplayAssets.Doors -- Path to the parent of the special door
+local TOOL_PATH = workspace.GameplayAssets.Items.Normal.Tool
+local UNLOCKABLE_DOOR_PATH = workspace.GameplayParts.Doors.Normal.Unlockable
+local HUMANOID = Players.LocalPlayer.Character:WaitForChild("Humanoid")
+local ROOT_PART = Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+local CHARACTER = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+
+-- === COLOR TABLE ===
+local COLOR_TABLE = {
+    ["Red"] = Color3.new(1, 0, 0),
+    ["Blue"] = Color3.new(0.2, 0.6, 1),
+    ["Green"] = Color3.new(0, 1, 0),
+    ["Orange"] = Color3.new(1, 0.5, 0),
+    ["Pink"] = Color3.new(1, 0.4, 0.8),
+    ["Purple"] = Color3.new(0.5, 0, 1),
+    ["Teal"] = Color3.new(0, 0.5, 0.5),
+    ["White"] = Color3.new(1, 1, 1),
+    ["Yellow"] = Color3.new(1, 1, 0),
+}
+
+-- === STATE VARIABLES ===
+local monsterEspEnabled = false
+local bucketEspEnabled = false
+local gateEspEnabled = false
+local toolEspEnabled = false
+local monsterEspColor = Color3.new(1, 0.25, 0.25)
+local bucketHighlights = {}
+local gateHighlights = {}
+local toolHighlights = {}
+local toolNameTags = {}
+local doorHighlights = {}
+local unlockableHighlights = {}
+local unlockableNameTags = {}
+
+-- === MONSTER ESP ===
+local monsterHighlightConnection = nil
+
+local function startMonsterEsp()
+    if monsterHighlightConnection then return end
+    monsterHighlightConnection = RunService.Heartbeat:Connect(function()
+        if not monsterEspEnabled then return end
+        local monster = MONSTER_PATH:FindFirstChild(MONSTER_NAME)
+        if monster and monster.PrimaryPart and not monster.PrimaryPart:FindFirstChild("WindUI_MonsterHighlight") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "WindUI_MonsterHighlight"
+            highlight.Adornee = monster
+            highlight.FillColor = monsterEspColor
+            highlight.OutlineColor = monsterEspColor
+            highlight.FillTransparency = 0.3
+            highlight.OutlineTransparency = 0
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.Parent = monster.PrimaryPart
+        end
+    end)
+end
+
+local function stopMonsterEsp()
+    if monsterHighlightConnection then monsterHighlightConnection:Disconnect() monsterHighlightConnection = nil end
+    local monster = MONSTER_PATH:FindFirstChild(MONSTER_NAME)
+    if monster and monster.PrimaryPart then
+        local highlight = monster.PrimaryPart:FindFirstChild("WindUI_MonsterHighlight")
+        if highlight then highlight:Destroy() end
+    end
+end
+
+-- === SHARED COLOR FUNCTION ===
+local function getColorFromName(name)
+    for colorName, colorValue in pairs(COLOR_TABLE) do
+        if string.find(name, colorName) then
+            return colorValue
+        end
+    end
+    return Color3.new(0.7, 0.7, 0.7)
+end
+
+-- === BUCKET ESP FUNCTION ===
+local function updateBucketEsp()
+    for _, highlight in pairs(bucketHighlights) do if highlight and highlight.Parent then highlight:Destroy() end end
+    bucketHighlights = {}
+    if not bucketEspEnabled then return end
+    for _, bucket in BUCKET_PATH:GetChildren() do
+        if bucket:IsA("Model") and bucket.PrimaryPart then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "WindUI_BucketHighlight"
+            highlight.Adornee = bucket
+            local color = getColorFromName(bucket.Name)
+            highlight.FillColor = color
+            highlight.OutlineColor = color
+            highlight.FillTransparency = 0.4
+            highlight.OutlineTransparency = 0
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.Parent = bucket
+            table.insert(bucketHighlights, highlight)
+        end
+    end
+end
+
+-- === UPDATED GATE ESP FUNCTION (NOW INCLUDES THE SPECIAL DOOR) ===
+local function updateGateEsp()
+    -- Clean up old highlights
+    for _, h in pairs(gateHighlights) do
+        if h and h.Parent then h:Destroy() end
+    end
+    gateHighlights = {}
+    if not gateEspEnabled then return end
+
+    local function colourOf(obj)
+        for colourName, colourValue in pairs(COLOR_TABLE) do
+            if string.find(obj.Name, colourName) then return colourValue end
+        end
+        local p = obj.Parent
+        if p and p:IsA("Model") then
+            for colourName, colourValue in pairs(COLOR_TABLE) do
+                if string.find(p.Name, colourName) then return colourValue end
+            end
+        end
+        return Color3.new(0.7, 0.7, 0.7)
+    end
+
+    -- --- PART 1: HIGHLIGHT THE NORMAL COLORED GATES ---
+    for _, obj in GATE_PATH:GetDescendants() do
+        if obj:IsA("BasePart") or obj:IsA("Model") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "WindUI_GateHighlight"
+            highlight.Adornee = obj
+            highlight.FillColor   = colourOf(obj)
+            highlight.OutlineColor= highlight.FillColor
+            highlight.FillTransparency = 0.4
+            highlight.OutlineTransparency = 0
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.Parent = obj
+            table.insert(gateHighlights, highlight)
+        end
+    end
+
+    -- --- PART 2: HIGHLIGHT THE SPECIAL DOOR ---
+    local specialDoor = SPECIAL_DOOR_PATH:GetChildren()[10]
+    if specialDoor and specialDoor:IsA("Model") and specialDoor.PrimaryPart then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "WindUI_SpecialDoorHighlight"
+        highlight.Adornee = specialDoor
+        highlight.FillColor = Color3.new(0, 0.5, 0.5) -- Solid Teal
+        highlight.OutlineColor = Color3.new(0, 0.5, 0.5)
+        highlight.FillTransparency = 0.3
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Parent = specialDoor
+        table.insert(gateHighlights, highlight)
+    end
+end
+
+-- === TOOL ESP FUNCTION ===
+local function updateToolEsp()
+    -- Clean up ALL old highlights and tags
+    for _, highlight in pairs(toolHighlights) do if highlight and highlight.Parent then highlight:Destroy() end end
+    for _, tag in pairs(toolNameTags) do if tag and tag.Parent then tag:Destroy() end end
+    for _, highlight in pairs(doorHighlights) do if highlight and highlight.Parent then highlight:Destroy() end end
+    for _, highlight in pairs(unlockableHighlights) do if highlight and highlight.Parent then highlight:Destroy() end end
+    for _, tag in pairs(unlockableNameTags) do if tag and tag.Parent then tag:Destroy() end end
+
+    toolHighlights = {}
+    toolNameTags = {}
+    doorHighlights = {}
+    unlockableHighlights = {}
+    unlockableNameTags = {}
+
+    if not toolEspEnabled then return end
+
+    -- --- PART 1: HIGHLIGHT THE TOOLS ---
+    for _, tool in TOOL_PATH:GetChildren() do
+        if tool:IsA("Model") and tool.PrimaryPart then
+            local toolHighlight = Instance.new("Highlight")
+            toolHighlight.Name = "WindUI_ToolHighlight"
+            toolHighlight.Adornee = tool
+            toolHighlight.FillColor = Color3.new(1, 1, 0) -- Yellow for tools
+            toolHighlight.OutlineColor = Color3.new(1, 1, 0)
+            toolHighlight.FillTransparency = 0.2
+            toolHighlight.OutlineTransparency = 0
+            toolHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            toolHighlight.Parent = tool
+            table.insert(toolHighlights, toolHighlight)
+
+            -- Create name tag for the tool
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "WindUI_ToolNameTag"
+            billboard.Adornee = tool.PrimaryPart
+            billboard.Size = UDim2.new(0, 100, 0, 50)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+
+            local label = Instance.new("TextLabel", billboard)
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Text = tool.Name
+            label.TextColor3 = Color3.new(1, 1, 1)
+            label.TextStrokeColor3 = Color3.new(0, 0.5, 1)
+            label.TextStrokeTransparency = 0
+            label.Font = Enum.Font.GothamBold
+            label.TextSize = 14
+
+            billboard.Parent = tool.PrimaryPart
+            table.insert(toolNameTags, billboard)
+        end
+    end
+
+    -- --- PART 2: HIGHLIGHT ALL MODELS IN THE UNLOCKABLE FOLDER ---
+    for _, unlockableModel in UNLOCKABLE_DOOR_PATH:GetChildren() do
+        if unlockableModel:IsA("Model") and unlockableModel.PrimaryPart then
+            local color = getColorFromName(unlockableModel.Name)
+            
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "WindUI_UnlockableHighlight"
+            highlight.Adornee = unlockableModel
+            highlight.FillColor = color
+            highlight.OutlineColor = color
+            highlight.FillTransparency = 0.3
+            highlight.OutlineTransparency = 0
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.Parent = unlockableModel
+            table.insert(unlockableHighlights, highlight)
+
+            -- Create name tag for the unlockable model
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "WindUI_UnlockableNameTag"
+            billboard.Adornee = unlockableModel.PrimaryPart
+            billboard.Size = UDim2.new(0, 100, 0, 50)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+
+            local label = Instance.new("TextLabel", billboard)
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Text = unlockableModel.Name
+            label.TextColor3 = Color3.new(1, 1, 1)
+            label.TextStrokeColor3 = Color3.new(0, 0.5, 1)
+            label.TextStrokeTransparency = 0
+            label.Font = Enum.Font.GothamBold
+            label.TextSize = 14
+
+            billboard.Parent = unlockableModel.PrimaryPart
+            table.insert(unlockableNameTags, billboard)
+        end
+    end
+end
+
+
+-- === WINDOW SETUP ===
+local Window = WindUI:CreateWindow({
+    Title = "Nexus Hub - Color or Die!",
+    Icon = "palette",
+    Author = "by hac4er and zz",
+    Folder = "NexusHubColorOrDie",
+    Size = UDim2.fromOffset(580, 460), MinSize = Vector2.new(560, 350), MaxSize = Vector2.new(850, 560),
+    Transparent = true, Theme = "Dark", Resizable = true, SideBarWidth = 200,
+    BackgroundImageTransparency = 0.42, HideSearchBar = true, ScrollBarEnabled = false,
+    User = { Enabled = true, Anonymous = false, Callback = function() print("User profile clicked") end, },
+})
+
+-- === SET THE UI TOGGLE KEYBIND ===
+Window:SetToggleKey(Enum.KeyCode.K)
+
+-- === TAB CREATION ===
+local VisualsTab = Window:Tab({ Title = "Visuals", Icon = "eye" })
+local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
+local MiscTab = Window:Tab({ Title = "Misc", Icon = "sparkles" })
+
+-- ========================================
+-- VISUALS TAB CONTENT
+-- ========================================
+VisualsTab:Section({ Title = "Monster ESP" })
+VisualsTab:Toggle({ Title = "Enable Monster ESP", Default = false, Callback = function(Value)
+    monsterEspEnabled = Value
+    if monsterEspEnabled then startMonsterEsp() else stopMonsterEsp() end
+end})
+VisualsTab:Colorpicker({ Title = "Monster ESP Color", Default = monsterEspColor, Callback = function(Value) monsterEspColor = Value end })
+
+VisualsTab:Section({ Title = "Paint Buckets" })
+VisualsTab:Toggle({
+    Title = "Enable Bucket ESP",
+    Description = "Highlights all paint buckets by color.",
+    Default = false,
+    Callback = function(Value)
+        bucketEspEnabled = Value
+        updateBucketEsp()
+    end
+})
+
+VisualsTab:Section({ Title = "Gates" })
+VisualsTab:Toggle({
+    Title = "Enable Gate ESP",
+    Description = "Highlights all gate parts by color, plus a special door.",
+    Default = false,
+    Callback = function(Value)
+        gateEspEnabled = Value
+        updateGateEsp()
+    end
+})
+
+VisualsTab:Section({ Title = "Tools" })
+VisualsTab:Toggle({
+    Title = "Enable Tool ESP",
+    Description = "Shows all tools and all unlockable doors with name ESP.",
+    Default = false,
+    Callback = function(Value)
+        toolEspEnabled = Value
+        updateToolEsp()
+    end
+})
