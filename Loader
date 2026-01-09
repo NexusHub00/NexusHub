@@ -1,13 +1,13 @@
 local Games = {
-    [12931609417] = "https://pastebin.com/raw/YourUniqueCode",
+    [12931609417] = loadstring(game:HttpGet("https://raw.githubusercontent.com/NexusHub00/NexusHub/refs/heads/main/ColorORDie"))
 }
 
-local placeId = game.PlaceId
-local scriptUrl = Games[placeId]
+-- The loader just finds and calls the function
+local scriptFunction = Games[game.PlaceId]
 
-if scriptUrl then
+if scriptFunction then
     print("Game Supported! Loading script...")
-    loadstring(game:HttpGet(scriptUrl))()
+    scriptFunction() -- Execute the pre-loaded function
 else
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
