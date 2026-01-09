@@ -1,0 +1,15 @@
+local Games = {
+    [12931609417] = "https://pastebin.com/raw/YourUniqueCode",
+}
+
+local placeId = game.PlaceId
+local scriptUrl = Games[placeId]
+
+if scriptUrl then
+    print("Game Supported! Loading script...")
+    loadstring(game:HttpGet(scriptUrl))()
+else
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+    player:Kick("Game Not Supported")
+end
