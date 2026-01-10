@@ -1,6 +1,5 @@
 /**
- * Ultra-Modern Private-Server Finder
- * Glass-morphism UI + airtight scrolling + a cool new loading animation + fixed auto-refresh and duplicates.
+ * Ultra-Modern Private-Server Finder  –  rebranded to “Nexus Beta”
  */
 (async () => {
   /* ---------- CONFIG ---------- */
@@ -45,7 +44,7 @@
   const fetchServers = async () => {
     state.isLoading = true;
     updateUI();
-    state.servers = []; // <-- THE FIX: Clear the old servers before fetching new ones
+    state.servers = [];
     let cursor = '';
     try {
       while (true) {
@@ -94,18 +93,18 @@
         }
         @keyframes slideIn{from{opacity:0;transform:translateX(50px) scale(.95)}to{opacity:1;transform:none scale(1)}}
         #um-header{flex:0 0 auto;padding:24px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center}
-        #um-header .header-controls { display:flex; gap:10px; }
+        #um-header .header-controls{display:flex;gap:10px}
         #um-title{font-size:1.5rem;font-weight:700;background:linear-gradient(to right,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
         #um-status{font-size:.8rem;color:#94a3b8}
         .icon-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#f1f5f9;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s ease}
-        .icon-btn:hover{background:rgba(255,255,255,.2);transform:scale(1.05);box-shadow:0 4px 15px rgba(0, 162,255,.3)}
+        .icon-btn:hover{background:rgba(255,255,255,.2);transform:scale(1.05);box-shadow:0 4px 15px rgba(0,162,255,.3)}
         .close-btn:hover{background:rgba(239,68,68,.2)!important;box-shadow:0 4px 15px rgba(239,68,68,.3)!important}
         #um-filters{flex:0 0 auto;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.1)}
         .filter-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.filter-row:last-child{margin-bottom:0}
         .toggle-container{display:flex;align-items:center;gap:10px;font-size:.9rem;font-weight:500}
         .toggle{position:relative;width:48px;height:26px;background:#475569;border-radius:34px;cursor:pointer;transition:background .4s}
         .toggle.active{background:linear-gradient(to right,#3b82f6,#8b5cf6)}.toggle-slider{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .4s;box-shadow:0 2px 4px rgba(0,0,0,.2)}.toggle.active .toggle-slider{transform:translateX(22px)}
-        #um-list{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px;-webkit-overflow-scrolling: touch;}
+        #um-list{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:20px}
         #um-list::-webkit-scrollbar{width:8px}#um-list::-webkit-scrollbar-track{background:transparent}#um-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:4px}
         .srv-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:12px;transition:all .3s ease}.srv-card:hover{background:rgba(255,255,255,.08);transform:translateY(-3px);box-shadow:0 10px 25px rgba(0,0,0,.2)}
         .badges{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.badge{padding:4px 9px;border-radius:20px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;height:24px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2)}
@@ -114,31 +113,10 @@
         .join-btn{background:linear-gradient(to right,#3b82f6,#8b5cf6);border:none;color:#fff;padding:12px;border-radius:10px;font-weight:700;font-size:.9rem;cursor:pointer;transition:all .3s ease;box-shadow:0 4px 15px rgba(59,130,246,.4);width:100%;box-sizing:border-box}.join-btn:hover{transform:scale(1.02);box-shadow:0 6px 20px rgba(59,130,246,.6)}.join-btn:active{transform:scale(.98)}
         #um-notify{position:absolute;bottom:30px;left:50%;transform:translate(-50%,20px);background:linear-gradient(to right,#1e293b,#334155);color:#f1f5f9;padding:12px 24px;border-radius:12px;font-weight:600;transition:all .3s ease;z-index:10001;opacity:0;box-shadow:0 10px 25px rgba(0,0,0,.3)}
         .empty-state{text-align:center;margin-top:50px;opacity:.5;font-weight:600;font-size:1.1rem}
-        
-        /* --- NEW COOL LOADING ANIMATION --- */
         .loading-spinner{display:flex;justify-content:center;align-items:center;height:150px;gap:8px}
-        .pulse-dot {
-            width: 12px;
-            height: 12px;
-            background: #60a5fa;
-            border-radius: 50%;
-            animation: pulse 1.5s ease-in-out infinite;
-            box-shadow: 0 0 10px 2px rgba(96, 165, 250, 0.5);
-        }
-        .pulse-dot:nth-child(2) { animation-delay: 0.2s; }
-        .pulse-dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes pulse {
-            0%, 80%, 100% {
-                transform: scale(0.8);
-                opacity: 0.5;
-            }
-            40% {
-                transform: scale(1.2);
-                opacity: 1;
-            }
-        }
-        /* ------------------------------------ */
-
+        .pulse-dot{width:12px;height:12px;background:#60a5fa;border-radius:50%;animation:pulse 1.5s ease-in-out infinite;box-shadow:0 0 10px 2px rgba(96,165,250,.5)}
+        .pulse-dot:nth-child(2){animation-delay:.2s}.pulse-dot:nth-child(3){animation-delay:.4s}
+        @keyframes pulse{0%,80%,100%{transform:scale(.8);opacity:.5}40%{transform:scale(1.2);opacity:1}}
         #um-popup{position:absolute;inset:0;display:none;justify-content:center;align-items:center;z-index:10002;background:rgba(0,0,0,.4);border-radius:20px;animation:fadeIn .3s ease}#um-popup.active{display:flex}@keyframes fadeIn{from{opacity:0}to{opacity:1}}
         .popup-content{background:#1e293b;padding:30px 40px;border-radius:16px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5);z-index:10003}.popup-title{font-size:1.25rem;font-weight:700;margin-bottom:25px;color:#f1f5f9}.popup-buttons{display:flex;gap:15px}.popup-btn{flex:1;padding:12px 0;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s ease}.popup-btn.no{background:#000;color:#f1f5f9}.popup-btn.no:hover{background:#333}.popup-btn.yes{background:#dc2626;color:#fff}.popup-btn.yes:hover{background:#b91c1c}
       </style>
@@ -146,7 +124,7 @@
       <div id="um-main" style="display:flex;flex-direction:column;height:100%">
         <div id="um-header">
           <div>
-            <div id="um-title">Server Finder</div>
+            <div id="um-title">Nexus Beta</div>               <!--  ⬅️  NEW TITLE  -->
             <div id="um-status">Initializing…</div>
           </div>
           <div class="header-controls">
@@ -170,7 +148,7 @@
 
       <div id="um-popup">
         <div class="popup-content">
-          <div class="popup-title">Close the finder?</div>
+          <div class="popup-title">Close Nexus Beta?</div>   <!--  ⬅️  NEW TITLE  -->
           <div class="popup-buttons">
             <button class="popup-btn no" id="um-no">No</button>
             <button class="popup-btn yes" id="um-yes">Yes</button>
@@ -188,13 +166,7 @@
     const list = document.getElementById('um-list');
     const status = document.getElementById('um-status');
     status.textContent = state.isLoading ? 'Scanning…' : `${state.servers.length} servers found`;
-
-    // --- FIX: Don't render the list if we are currently fetching data ---
-    if (state.isLoading) {
-        list.innerHTML = '<div class="loading-spinner"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>';
-        return;
-    }
-
+    if (state.isLoading) { list.innerHTML = '<div class="loading-spinner"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>'; return; }
     const filt = state.servers.filter(s => {
       const pc = s.playerTokens?.length || 0;
       if (state.filters.soloOnly && pc !== 1) return false;
@@ -203,9 +175,7 @@
       if (state.filters.hideOwnerServers && ownerHere) return false;
       return pc > 0;
     });
-
     if (!filt.length) { list.innerHTML = '<div class="empty-state">No servers match your filters</div>'; return; }
-
     list.innerHTML = filt.map(s => {
       const pc = s.playerTokens?.length || 0;
       const owner = s.owner;
@@ -225,25 +195,13 @@
 
   const attachHandlers = () => {
     const listEl = document.getElementById('um-list');
-
-    /* ==========  SCROLL-LOCK  ========== */
     const kill = e => {
       const inList = e.target.closest('#um-list');
-      if (inList) {
-        e.stopPropagation();
-      } else {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      if (inList) { e.stopPropagation(); } else { e.preventDefault(); e.stopPropagation(); }
     };
-    ['wheel', 'touchmove', 'DOMMouseScroll', 'MozMousePixelScroll'].forEach(ev =>
-      listEl.addEventListener(ev, kill, { passive: false })
-    );
+    ['wheel', 'touchmove', 'DOMMouseScroll', 'MozMousePixelScroll'].forEach(ev => listEl.addEventListener(ev, kill, { passive: false }));
     window.addEventListener('wheel', kill, { passive: false });
     window.addEventListener('touchmove', kill, { passive: false });
-    /* =================================== */
-
-    /* ---------- toggle switches ---------- */
     const flip = (id, key) => document.getElementById(id).addEventListener('click', function () {
       this.classList.toggle('active');
       state.filters[key] = this.classList.contains('active');
@@ -251,8 +209,6 @@
     });
     flip('um-solo', 'soloOnly');
     flip('um-owner', 'hideOwnerServers');
-
-    /* ---------- auto refresh ---------- */
     document.getElementById('um-auto').addEventListener('click', function () {
       this.classList.toggle('active');
       const on = this.classList.contains('active');
@@ -265,14 +221,10 @@
         notify('Auto-refresh OFF');
       }
     });
-
-    /* ---------- refresh ---------- */
     document.getElementById('um-refresh').addEventListener('click', () => {
       state.joinedServers.clear();
       fetchServers();
     });
-
-    /* ---------- close ---------- */
     const main = document.getElementById('um-main');
     const popup = document.getElementById('um-popup');
     document.getElementById('um-close').addEventListener('click', () => {
@@ -289,8 +241,6 @@
       window.removeEventListener('touchmove', kill);
       document.getElementById('um-root').remove();
     });
-
-    /* ---------- join buttons ---------- */
     listEl.addEventListener('click', e => {
       if (e.target.classList.contains('join-btn')) {
         const { pid, code, sid } = e.target.dataset;
@@ -304,5 +254,5 @@
   state.csrfToken = await getCSRFToken();
   createUI();
   fetchServers();
-  setInterval(updateUI, 10_000); // refresh “time ago” badges
+  setInterval(updateUI, 10_000);
 })();
