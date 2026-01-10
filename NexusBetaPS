@@ -4,7 +4,7 @@
 (async () => {
   /* ---------- CONFIG ---------- */
   const GAME_PLACE_ID = window.location.pathname.match(/\/games\/(\d+)/)[1];
-  const SERVERS_PER_FETCH = 150;
+  const SERVERS_PER_FETCH = 100;
   const AUTO_REFRESH_MS = 30_000;
 
   /* ---------- STATE ---------- */
