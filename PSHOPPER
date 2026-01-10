@@ -1,1 +1,579 @@
+/**
+ * Ultra-Modern Private Server Finder (Fixed Toggle Bug)
+ * Features a unified, consistent badge system. Toggles now work without breaking the layout.
+ */
+(async () => {
+    // --- CONFIGURATION ---
+    const GAME_PLACE_ID = window.location.pathname.match(/\/games\/(\d+)/)[1];
+    const SERVERS_PER_FETCH = 100;
+    const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
 
+    // --- STATE MANAGEMENT ---
+    const state = {
+        csrfToken: '',
+        isLoading: false,
+        servers: [],
+        joinedServers: new Map(),
+        autoRefreshInterval: null,
+        filters: {
+            hideOwnerServers: true,
+            soloOnly: false
+        }
+    };
+
+    // --- UTILITY FUNCTIONS ---
+    const getCSRFToken = async () => {
+        const response = await fetch('https://auth.roblox.com/v2/logout', { method: 'POST', credentials: 'include' });
+        return response.headers.get('x-csrf-token');
+    };
+
+    const showNotification = (message) => {
+        const notif = document.getElementById('ultra-modern-notify');
+        if (!notif) return;
+        notif.textContent = message;
+        notif.style.opacity = '1';
+        notif.style.transform = 'translate(-50%, 0)';
+        setTimeout(() => {
+            notif.style.opacity = '0';
+            notif.style.transform = 'translate(-50%, 20px)';
+        }, 2500);
+    };
+
+    const formatTimeAgo = (date) => {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        if (seconds < 60) return `${seconds}s ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        return `${hours}h ago`;
+    };
+
+    // --- CORE FUNCTIONALITY ---
+    const fetchServers = async () => {
+        state.isLoading = true;
+        updateUI();
+        state.servers = [];
+        let cursor = '';
+
+        try {
+            while (true) {
+                const url = `https://games.roblox.com/v1/games/${GAME_PLACE_ID}/private-servers?limit=${SERVERS_PER_FETCH}&cursor=${cursor}`;
+                const response = await fetch(url, { credentials: 'include' });
+                const data = await response.json();
+
+                if (data.data) {
+                    state.servers.push(...data.data);
+                }
+                cursor = data.nextPageCursor;
+                if (!cursor) break;
+            }
+        } catch (error) {
+            console.error("Failed to fetch servers:", error);
+            showNotification("Error fetching servers.");
+        } finally {
+            state.isLoading = false;
+            updateUI();
+        }
+    };
+
+    const joinServer = (placeId, accessCode, serverId) => {
+        showNotification('Joining Server...');
+        state.joinedServers.set(serverId, new Date());
+        updateUI();
+
+        if (window.Roblox?.GameLauncher?.joinPrivateGame) {
+            window.Roblox.GameLauncher.joinPrivateGame(placeId, accessCode);
+        } else {
+            window.location.href = `roblox-player:1+launchmode:play+gameinfo:${accessCode}+placelauncherurl:https%3A%2F%2Fassetgame.roblox.com%2Fgame%2FPlaceLauncher.ashx%3Frequest%3DRequestPrivateGame%26placeId%3D${placeId}%26accessCode%3D${accessCode}`;
+        }
+    };
+    
+    // --- UI RENDERING ---
+    const createUI = () => {
+        const existingRoot = document.getElementById('ultra-modern-server-finder-root');
+        if (existingRoot) existingRoot.remove();
+
+        const root = document.createElement('div');
+        root.id = 'ultra-modern-server-finder-root';
+        root.innerHTML = `
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+                #ultra-modern-server-finder-root {
+                    font-family: 'Inter', sans-serif;
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    width: 380px;
+                    height: 750px;
+                    background: rgba(17, 25, 40, 0.75);
+                    backdrop-filter: blur(16px) saturate(180%);
+                    border-radius: 20px;
+                    border: 1px solid rgba(255, 255, 255, 0.125);
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                    z-index: 10000;
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                    color: #f1f5f9;
+                    animation: slideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+                }
+                @keyframes slideIn {
+                    from { opacity: 0; transform: translateX(50px) scale(0.95); }
+                    to { opacity: 1; transform: translateX(0) scale(1); }
+                }
+                #ultra-modern-header {
+                    padding: 24px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-shrink: 0;
+                }
+                #ultra-modern-title {
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    background: linear-gradient(to right, #60a5fa, #a78bfa);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+                #ultra-modern-status {
+                    font-size: 0.8rem;
+                    color: #94a3b8;
+                    font-weight: 500;
+                }
+                .header-controls {
+                    display: flex;
+                    gap: 10px;
+                }
+                .icon-btn {
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    color: #f1f5f9;
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+                .icon-btn:hover { 
+                    background: rgba(255, 255, 255, 0.2); 
+                    transform: scale(1.05);
+                    box-shadow: 0 4px 15px rgba(0, 162, 255, 0.3);
+                }
+                .icon-btn.close-btn:hover {
+                    background: rgba(239, 68, 68, 0.2);
+                    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+                }
+                .icon-btn svg { width: 20px; height: 20px; }
+                
+                #ultra-modern-filters {
+                    padding: 16px 24px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    display: flex;
+                    flex-direction: column;
+                    gap: 15px;
+                    flex-shrink: 0;
+                }
+                .filter-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .toggle-container {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-size: 0.9rem;
+                    font-weight: 500;
+                }
+                .toggle {
+                    position: relative;
+                    width: 48px;
+                    height: 26px;
+                    background: #475569;
+                    border-radius: 34px;
+                    cursor: pointer;
+                    transition: background 0.4s;
+                }
+                .toggle.active { background: linear-gradient(to right, #3b82f6, #8b5cf6); }
+                .toggle-slider {
+                    position: absolute;
+                    top: 3px;
+                    left: 3px;
+                    width: 20px;
+                    height: 20px;
+                    background: #ffffff;
+                    border-radius: 50%;
+                    transition: transform 0.4s, box-shadow 0.4s;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+                .toggle.active .toggle-slider { transform: translateX(22px); }
+
+                #ultra-modern-server-list {
+                    flex-grow: 1;
+                    overflow-y: auto;
+                    padding: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+                #ultra-modern-server-list::-webkit-scrollbar { width: 8px; }
+                #ultra-modern-server-list::-webkit-scrollbar-track { background: transparent; }
+                #ultra-modern-server-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+
+                /* --- FINALIZED SERVER CARD --- */
+                .server-card {
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 16px;
+                    padding: 16px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    transition: all 0.3s ease;
+                }
+                .server-card:hover { 
+                    background: rgba(255, 255, 255, 0.08); 
+                    transform: translateY(-3px);
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                }
+                
+                .badge-group {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                }
+                .badge {
+                    padding: 4px 9px;
+                    border-radius: 20px;
+                    font-size: 12px; /* Unified font size */
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    height: 24px; /* Unified height */
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    white-space: nowrap;
+                }
+                .badge-players {
+                    background: linear-gradient(to right, #60a5fa, #3b82f6);
+                    color: #ffffff;
+                }
+                .badge-owner {
+                    background: linear-gradient(to right, #ef4444, #dc2626);
+                    color: #ffffff;
+                }
+                .badge-recent {
+                    background: linear-gradient(to right, #10b981, #059669);
+                    color: #ffffff;
+                }
+                
+                .server-name {
+                    font-weight: 600;
+                    font-size: 1rem;
+                    color: #e2e8f0;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .join-btn {
+                    background: linear-gradient(to right, #3b82f6, #8b5cf6);
+                    border: none;
+                    color: white;
+                    padding: 12px;
+                    border-radius: 10px;
+                    font-weight: 700;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .join-btn:hover { 
+                    transform: scale(1.02);
+                    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+                }
+                .join-btn:active { transform: scale(0.98); }
+
+                #ultra-modern-notify {
+                    position: absolute;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translate(-50%, 20px);
+                    background: linear-gradient(to right, #1e293b, #334155);
+                    color: #f1f5f9;
+                    padding: 12px 24px;
+                    border-radius: 12px;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    z-index: 10001;
+                    opacity: 0;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+                }
+                .empty-state {
+                    text-align: center;
+                    margin-top: 50px;
+                    opacity: 0.5;
+                    font-weight: 600;
+                    font-size: 1.1rem;
+                }
+                .loading-spinner {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 150px;
+                }
+                .spinner {
+                    width: 50px;
+                    height: 50px;
+                    border: 4px solid rgba(255, 255, 255, 0.1);
+                    border-top-color: #60a5fa;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                }
+                @keyframes spin { to { transform: rotate(360deg); } }
+
+                /* --- Confirmation Popup Styles --- */
+                #confirm-popup {
+                    position: absolute;
+                    inset: 0;
+                    display: none;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10002;
+                    background: rgba(0, 0, 0, 0.4);
+                    border-radius: 20px;
+                    animation: fadeIn 0.3s ease;
+                }
+                #confirm-popup.active {
+                    display: flex;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                .popup-content {
+                    background: #1e293b;
+                    padding: 30px 40px;
+                    border-radius: 16px;
+                    text-align: center;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                    z-index: 10003;
+                }
+                .popup-title {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    margin-bottom: 25px;
+                    color: #f1f5f9;
+                }
+                .popup-buttons {
+                    display: flex;
+                    gap: 15px;
+                }
+                .popup-btn {
+                    flex: 1;
+                    padding: 12px 0;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .popup-btn.no {
+                    background: #000000;
+                    color: #f1f5f9;
+                }
+                .popup-btn.no:hover { background: #333; }
+                .popup-btn.yes {
+                    background: #dc2626;
+                    color: #ffffff;
+                }
+                .popup-btn.yes:hover { background: #b91c1c; }
+            </style>
+
+            <div id="main-content">
+                <div id="ultra-modern-header">
+                    <div>
+                        <div id="ultra-modern-title">Server Finder</div>
+                        <div id="ultra-modern-status">Initializing...</div>
+                    </div>
+                    <div class="header-controls">
+                        <button class="icon-btn" id="refresh-btn">
+                            <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg>
+                        </button>
+                        <button class="icon-btn close-btn" id="close-btn">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="ultra-modern-filters">
+                    <div class="filter-row">
+                        <div class="toggle-container">
+                            <span>Solo Only</span>
+                            <div class="toggle" id="solo-toggle">
+                                <div class="toggle-slider"></div>
+                            </div>
+                        </div>
+                        <div class="toggle-container">
+                            <span>Hide Owners</span>
+                            <div class="toggle active" id="owner-toggle">
+                                <div class="toggle-slider"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <div class="toggle-container">
+                            <span>Auto-Refresh (30s)</span>
+                            <div class="toggle" id="autorefresh-toggle">
+                                <div class="toggle-slider"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ultra-modern-server-list">
+                    <div class="loading-spinner"><div class="spinner"></div></div>
+                </div>
+            </div>
+
+            <div id="confirm-popup">
+                <div class="popup-content">
+                    <div class="popup-title">Are you sure you want to close?</div>
+                    <div class="popup-buttons">
+                        <button class="popup-btn no" id="confirm-no">NO</button>
+                        <button class="popup-btn yes" id="confirm-yes">YES</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ultra-modern-notify"></div>
+        `;
+        document.body.appendChild(root);
+        attachEventListeners();
+    };
+
+    const updateUI = () => {
+        const list = document.getElementById('ultra-modern-server-list');
+        const status = document.getElementById('ultra-modern-status');
+
+        status.textContent = state.isLoading ? 'Scanning...' : `${state.servers.length} Servers Found`;
+
+        if (state.isLoading) {
+            list.innerHTML = `<div class="loading-spinner"><div class="spinner"></div></div>`;
+            return;
+        }
+
+        const filteredServers = state.servers.filter(server => {
+            const playerCount = server.playerTokens?.length || 0;
+            if (state.filters.soloOnly && playerCount !== 1) return false;
+            
+            const isOwnerPresent = server.owner && server.playerTokens?.some(p => p.id === server.owner.id);
+            if (state.filters.hideOwnerServers && isOwnerPresent) return false;
+            
+            return playerCount > 0;
+        });
+
+        if (filteredServers.length === 0) {
+            list.innerHTML = '<div class="empty-state">No servers found matching your criteria.</div>';
+            return;
+        }
+
+        list.innerHTML = filteredServers.map(server => {
+            const playerCount = server.playerTokens?.length || 0;
+            const isOwnerPresent = server.owner && server.playerTokens?.some(p => p.id === server.owner.id);
+            const joinTime = state.joinedServers.get(server.id);
+
+            let badgesHtml = `<span class="badge badge-players">${playerCount} / ${server.maxPlayers}</span>`;
+            if (isOwnerPresent) {
+                badgesHtml += `<span class="badge badge-owner">OWNER</span>`;
+            }
+            if (joinTime) {
+                badgesHtml += `<span class="badge badge-recent">RECENT: ${formatTimeAgo(joinTime)}</span>`;
+            }
+
+            return `
+                <div class="server-card">
+                    <div class="badge-group">
+                        ${badgesHtml}
+                    </div>
+                    <div class="server-name" title="${server.name || 'Unnamed Server'}">
+                        ${server.name || 'Unnamed Server'}
+                    </div>
+                    <button class="join-btn" onclick="window.ultraModernJoinServer('${GAME_PLACE_ID}', '${server.accessCode}', '${server.id}')">Join</button>
+                </div>
+            `;
+        }).join('');
+    };
+
+    const attachEventListeners = () => {
+        const mainContent = document.getElementById('main-content');
+        const popup = document.getElementById('confirm-popup');
+
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+            state.joinedServers.clear();
+            fetchServers();
+        });
+
+        document.getElementById('close-btn').addEventListener('click', () => {
+            mainContent.classList.add('blurred');
+            popup.classList.add('active');
+        });
+
+        document.getElementById('confirm-no').addEventListener('click', () => {
+            mainContent.classList.remove('blurred');
+            popup.classList.remove('active');
+        });
+
+        document.getElementById('confirm-yes').addEventListener('click', () => {
+            if (state.autoRefreshInterval) clearInterval(state.autoRefreshInterval);
+            document.getElementById('ultra-modern-server-finder-root').remove();
+        });
+        
+        document.getElementById('solo-toggle').addEventListener('click', function() {
+            this.classList.toggle('active');
+            state.filters.soloOnly = this.classList.contains('active');
+            updateUI();
+        });
+
+        document.getElementById('owner-toggle').addEventListener('click', function() {
+            this.classList.toggle('active');
+            state.filters.hideOwnerServers = this.classList.contains('active');
+            updateUI();
+        });
+
+        document.getElementById('autorefresh-toggle').addEventListener('click', function() {
+            this.classList.toggle('active');
+            const isActive = this.classList.contains('active');
+            if (isActive) {
+                state.autoRefreshInterval = setInterval(fetchServers, AUTO_REFRESH_INTERVAL);
+                showNotification('Auto-Refresh Enabled');
+            } else {
+                if (state.autoRefreshInterval) {
+                    clearInterval(state.autoRefreshInterval);
+                    state.autoRefreshInterval = null;
+                }
+                showNotification('Auto-Refresh Disabled');
+            }
+        });
+    };
+
+    // --- INITIALIZATION ---
+    window.ultraModernJoinServer = joinServer;
+    state.csrfToken = await getCSRFToken();
+    createUI();
+    fetchServers();
+
+    // Update timers for "Recently Joined" badges
+    setInterval(updateUI, 10000);
+
+})();
